@@ -1,24 +1,24 @@
 const puppeteer = require('puppeteer-core')
 
 class Approweb {
-  constructor(username, password, npwp, cb) {
+  constructor(username, password, npwp, { executablePath = 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe', headless = true } = {}, cb) {
     this.tanggalAkses = new Date()
     this.npwp = npwp
-    return this.init(username, password, cb)
+    return this.init(username, password, { executablePath, headless }, cb)
   }
 
-  async init(username, password, cb) {
+  async init(username, password, { executablePath, headless }, cb) {
     try {
       this.browser = await puppeteer.launch({
-        executablePath: 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+        executablePath,
         ignoreHTTPSErrors: true,
         defaultViewport: null,
-        headless: false,
+        headless,
         devtools: true,
         args: ['--start-maximized',]
       })
       this.page = await this.browser.newPage()
-      await this.page.goto('https://approweb/', { waitUntil: 'networkidle2' })
+      await this.page.goto('https://approweb.intranet.pajak.go.id/', { waitUntil: 'networkidle2' })
       return this.login(username, password, cb)
     } catch (err) {
       if (typeof cb === 'function') return cb(err)
@@ -46,7 +46,7 @@ class Approweb {
 
   async logout(cb) {
     try {
-      await this.page.goto('https://approweb/index.php?r=home/logout', { waitUntil: 'networkidle2' })
+      await this.page.goto('https://approweb.intranet.pajak.go.id/index.php?r=home/logout', { waitUntil: 'networkidle2' })
       await this.page.close()
       await this.browser.close()
       if (typeof cb === 'function') return cb()
@@ -59,8 +59,8 @@ class Approweb {
 
   async setWp(cb) {
     try {
-      await this.page.goto('https://approweb/index.php?r=home/cariWP')
-      await this.page.type('#carinpwpmodelkatacari', npwp)
+      await this.page.goto('https://approweb.intranet.pajak.go.id/index.php?r=home/cariWP')
+      await this.page.type('#carinpwpmodelkatacari', this.npwp)
       await Promise.all([
         this.page.waitForNavigation({ waitUntil: 'networkidle2' }),
         this.page.click('[name="yt0"]'),
@@ -86,7 +86,7 @@ class Approweb {
 
   async getSp2dk() {
     try {
-      await this.page.goto('https://approweb/index.php?r=pemantauan/daftarsp2dk')
+      await this.page.goto('https://approweb.intranet.pajak.go.id/index.php?r=pemantauan/daftarsp2dk')
       const sp2dk = await this.page.$$eval('#daftarsp2dk>tbody>tr', es => es.map(e => {
         const cells = e.children
         return {

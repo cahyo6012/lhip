@@ -130,17 +130,17 @@ function createProfilFolder(npwp) {
 
     await sidjp.logout()
 
-    // const approweb = await new Approweb(akun.approweb.username, akun.approweb.password, data.initNpwp)
-    // Object.assign(data, { tanggalAksesApproweb: approweb.tanggalAkses.toLocaleDateString('en-gb') })
+    const approweb = await new Approweb(akun.approweb.username, akun.approweb.password, data.initNpwp, { executablePath: data.chromePath, headless: false })
+    Object.assign(data, { tanggalAksesApproweb: approweb.tanggalAkses.toLocaleDateString('en-gb') })
     
-    // if (!data.sp2dk) {
-    //   const sp2dk = await approweb.getSp2dk()
-    //   Object.assign(data, { sp2dk })
+    if (!data.sp2dk) {
+      const sp2dk = await approweb.getSp2dk()
+      Object.assign(data, { sp2dk })
     
-    //   fs.writeFileSync(path.resolve(wpPath, 'data.json'), JSON.stringify(data, null, 4))
-    // }
+      fs.writeFileSync(path.resolve(wpPath, 'data.json'), JSON.stringify(data, null, 4))
+    }
     
-    // await approweb.logout()
+    await approweb.logout()
   } catch (err) {
     console.log(err)
     return false
