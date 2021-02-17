@@ -1,6 +1,6 @@
 module.exports = {
-  chromePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
-  npwp: '750366544034000',
+  chromePath: 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+  npwp: '123456789090000',
   tahun: [2018, 2019],
   nomorPrint: 'PRINT-1/WPJ.05/2021',
   tanggalPrint: '1 Januari 2021',

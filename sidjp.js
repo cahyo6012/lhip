@@ -1,6 +1,5 @@
 const request = require('request-promise')
 const cheerio = require('cheerio')
-const querystring = require('querystring')
 
 function transposeArray(array = []) {
   return array[0].map((x, i) => array.map(x => x[i]))
@@ -664,7 +663,7 @@ class SIDJP {
 
   async _getIkhtisarPembayaran(tahun) {
     try {
-      const ikhtisarPembayaran = { tahun, keys: [], data: [] }
+      const ikhtisarPembayaran = { tahun, keys: ['Masa'], data: [] }
       
       const qs = { IDCABANG: this.idCabang, TAHUN: tahun }
       const res = await this.request.get('/SIDJP/BPLSTIKHTBYRIFR', { qs })
@@ -672,10 +671,10 @@ class SIDJP {
       const $ = cheerio.load(res.body)
       const rows = $('table[width="1600"] > tbody > tr')
 
-      for (let i = 1; i < rows.length; i++) {
+      for (let i = 1; i < rows.length; i += 2) {
         const cols = $(rows.get(i)).children()
         
-        ikhtisarPembayaran.keys.push($(cols.get(0)).text().trim())
+        ikhtisarPembayaran.keys.push($(cols.get(0)).text().trim().split('(')[0].trim())
 
         const data = []
         ikhtisarPembayaran.data.push(data)
@@ -686,6 +685,13 @@ class SIDJP {
       }
 
       ikhtisarPembayaran.data = transposeArray(ikhtisarPembayaran.data)
+      ikhtisarPembayaran.data.forEach((datum, i) => {
+        let index = i
+        if (i === 0) index = 'Jumlah'
+        if (i === 13) index = 'Tahunan'
+        
+        datum.unshift(index)
+      })
 
       return ikhtisarPembayaran
     } catch (err) {

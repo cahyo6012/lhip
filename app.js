@@ -1,5 +1,6 @@
 const SIDJP = require('./sidjp')
 const Approweb = require('./approweb')
+const ALPP = require('./alpp')
 const PizZip = require('pizzip')
 const Docxtemplater = require('docxtemplater')
 const expressions = require('angular-expressions')
@@ -130,17 +131,29 @@ function createProfilFolder(npwp) {
 
     await sidjp.logout()
 
-    const approweb = await new Approweb(akun.approweb.username, akun.approweb.password, data.initNpwp, { executablePath: data.chromePath, headless: false })
+    const approweb = await new Approweb(akun.approweb.username, akun.approweb.password, data.initNpwp, { executablePath: data.chromePath, headless: true })
     Object.assign(data, { tanggalAksesApproweb: approweb.tanggalAkses.toLocaleDateString('en-gb') })
     
     if (!data.sp2dk) {
       const sp2dk = await approweb.getSp2dk()
-      Object.assign(data, { sp2dk })
-    
+      Object.assign(data, { sp2dk, sp2dkEmpty: !sp2dk.length })
+      
       fs.writeFileSync(path.resolve(wpPath, 'data.json'), JSON.stringify(data, null, 4))
     }
     
     await approweb.logout()
+
+    const alpp = await new ALPP(akun.alpp.username, akun.alpp.password, data.initNpwp)
+    Object.assign(data, { tanggalAksesAlpp: alpp.tanggalAkses.toLocaleDateString('en-gb') })
+
+    if (!data.riwayatPemeriksaan) {
+      const riwayatPemeriksaan = await alpp.getRiwayatPemeriksaan()
+      Object.assign(data, { riwayatPemeriksaan, riwayatPemeriksaanEmpty: !riwayatPemeriksaan.length })
+
+      fs.writeFileSync(path.resolve(wpPath, 'data.json'), JSON.stringify(data, null, 4))
+    }
+
+    await alpp.logout()
   } catch (err) {
     console.log(err)
     return false
