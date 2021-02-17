@@ -1,0 +1,23 @@
+module.exports = {
+  npwp: '750366544034000',
+  tahun: [2018, 2019],
+  nomorPrint: 'PRINT-1/WPJ.05/2021',
+  tanggalPrint: '1 Januari 2021',
+  menimbang: [
+    { init: true, index: 'a', text: 'Analisis Internal terhadap Wajib Pajak terkait Penggunaan Faktur Pajak tidak berdasarkan transaksi yang sebenarnya.' },
+    { init: false, index: 'b', text: 'Adanya Proses Penyidikan terkait dengan Penerbit Faktur yang dikreditkan oleh Wajib Pajak.' },
+  ],
+  nomorRkip: 'RKIP-1/WPJ.05/2021',
+  tanggalRkip: '1 Januari 2021',
+  tanggalPelaksanaanRkip: '1 Januari 2021',
+  nomorKki: 'KKI-1/WPJ.05/2021',
+  tanggalKki: '1 Januari 2021',
+  nomorLhip: 'LHIP-1/WPJ.05/2021',
+  tanggalLhip: '1 Januari 2021',
+  nomorLiip: 'LIIP-1/WPJ.05/2021',
+  tanggalLiip: '1 Januari 2021',
+  kakanwil: 'Erna Sulistyowati',
+  kabidPpip: 'Binsar Pangaribuan',
+  kasiIntel: 'Reza Fauzi Tri Anugrah',
+  petugas: 'Wahyu Prasetyo Adji',
+}
