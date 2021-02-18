@@ -1,6 +1,7 @@
 const SIDJP = require('./sidjp')
 const Approweb = require('./approweb')
 const ALPP = require('./alpp')
+const Appportal = require('./appportal')
 const PizZip = require('pizzip')
 const Docxtemplater = require('docxtemplater')
 const expressions = require('angular-expressions')
@@ -108,9 +109,9 @@ function createProfilFolder(npwp) {
       fs.writeFileSync(path.resolve(wpPath, 'data.json'), JSON.stringify(data, null, 4))
     }
   
-    if (!data.pajakMasukan) {
-      const { listPajakMasukan, listPajakMasukanImpor, listPajakKeluaran, listEkspor } = await sidjp.getDetailSptPpn()
-      Object.assign(data, { pajakMasukan: listPajakMasukan, pajakMasukanImpor: listPajakMasukanImpor, pajakKeluaran: listPajakKeluaran, ekspor: listEkspor })
+    if (!data.pajakMasukan || !data.pajakMasukanImpor || !data.pajakKeluaran || !data.ekspor || !data.pajakMasukanTdd) {
+      const { listPajakMasukan, listPajakMasukanImpor, listPajakKeluaran, listEkspor, listPajakMasukanTdd } = await sidjp.getDetailSptPpn()
+      Object.assign(data, { pajakMasukan: listPajakMasukan, pajakMasukanImpor: listPajakMasukanImpor, pajakKeluaran: listPajakKeluaran, ekspor: listEkspor, pajakMasukanTdd: listPajakMasukanTdd })
     
       fs.writeFileSync(path.resolve(wpPath, 'data.json'), JSON.stringify(data, null, 4))
     }
@@ -154,6 +155,19 @@ function createProfilFolder(npwp) {
     }
 
     await alpp.logout()
+
+    const appportal = await new Appportal(akun.appportal.username, akun.appportal.password, data.initNpwp, data.tahun)
+    Object.assign(data, { tanggalAksesAppportal: appportal.tanggalAkses.toLocaleDateString('en-gb') })
+    
+    if (!data.fakturPK || !data.fakturPM) {
+      const { fakturPK, fakturPM } = await appportal.getPKPM()
+      Object.assign(data, { fakturPK, fakturPM })
+
+      fs.writeFileSync(path.resolve(wpPath, 'data.json'), JSON.stringify(data, null, 4))
+      appportal.exportPkpmToExcel(path.resolve(wpPath, 'PKPM.xlsx'))
+    }
+
+    await appportal.logout()
   } catch (err) {
     console.log(err)
     return false

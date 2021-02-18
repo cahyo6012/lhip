@@ -11,4 +11,8 @@ module.exports = {
     username: '',
     password: '',
   },
+  appportal: {
+    username: '',
+    password: '',
+  }
 }

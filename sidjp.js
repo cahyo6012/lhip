@@ -32,11 +32,12 @@ class SIDJP {
     this.listSpt = []
     this.listPemegangSaham = []
     this.listPengurus = []
-    this.listPenghasilan = []
+    this.listPenghasilan = { tahun: ['No.', 'Uraian'], data: [] }
     this.listPajakMasukan = []
     this.listPajakMasukanImpor = []
     this.listPajakKeluaran = []
     this.listEkspor = []
+    this.listPajakMasukanTdd = []
     this.listIkhtisarPembayaran = []
     this.listTunggakan = []
 
@@ -194,16 +195,16 @@ class SIDJP {
           }
 
           switch (datum.jenisSpt) {
-            case 'SPT Tahunan PPh Badan': datum.sptTahunan = true; break
-            case 'SPT Masa PPh Pasal 25': datum.spt25 = true; break
-            case 'SPT Masa PPh Pasal 21/26': datum.spt21 = true; break
-            case 'SPT Masa PPh Pasal 22': datum.spt22 = true; break
-            case 'SPT Masa PPh Pasal 23/26': datum.spt23 = true; break
-            case 'SPT Masa PPh Pasal 4 ayat (2)': datum.spt42 = true; break
-            case 'SPT Masa PPh Pasal 15': datum.spt15 = true; break
-            case 'SPT Masa PPN dan PPnBM': datum.sptPpn = true; break
-            case 'SPT Masa PPN Pemungut': datum.sptPpnPut = true; break
-            case 'SPT Masa PPN Pedagang Eceran': datum.sptPpnDm = true; break
+            case 'SPT Tahunan PPh Badan': datum.isSptTahunan = true; break
+            case 'SPT Masa PPh Pasal 25': datum.isSpt25 = true; break
+            case 'SPT Masa PPh Pasal 21/26': datum.isSpt21 = true; break
+            case 'SPT Masa PPh Pasal 22': datum.isSpt22 = true; break
+            case 'SPT Masa PPh Pasal 23/26': datum.isSpt23 = true; break
+            case 'SPT Masa PPh Pasal 4 ayat (2)': datum.isSpt42 = true; break
+            case 'SPT Masa PPh Pasal 15': datum.isSpt15 = true; break
+            case 'SPT Masa PPN dan PPnBM': datum.isSptPpn = true; break
+            case 'SPT Masa PPN Pemungut': datum.isSptPpnPut = true; break
+            case 'SPT Masa PPN Pedagang Eceran': datum.isSptPpnDm = true; break
           }
 
           data.push(datum)
@@ -237,16 +238,16 @@ class SIDJP {
 
       listSpt.forEach(spt => {
         const { empty, data } = spt
-        empty.sptTahunan = !data.filter(datum => datum.sptTahunan).length
-        empty.spt25 = !data.filter(datum => datum.spt25).length
-        empty.spt21 = !data.filter(datum => datum.spt21).length
-        empty.spt22 = !data.filter(datum => datum.spt22).length
-        empty.spt23 = !data.filter(datum => datum.spt23).length
-        empty.spt42 = !data.filter(datum => datum.spt42).length
-        empty.spt15 = !data.filter(datum => datum.spt15).length
-        empty.sptPpn = !data.filter(datum => datum.sptPpn).length
-        empty.sptPpnPut = !data.filter(datum => datum.sptPpnPut).length
-        empty.sptPpnDm = !data.filter(datum => datum.sptPpnDm).length
+        empty.isSptTahunan = !data.filter(datum => datum.sptTahunan).length
+        empty.isSpt25 = !data.filter(datum => datum.spt25).length
+        empty.isSpt21 = !data.filter(datum => datum.spt21).length
+        empty.isSpt22 = !data.filter(datum => datum.spt22).length
+        empty.isSpt23 = !data.filter(datum => datum.spt23).length
+        empty.isSpt42 = !data.filter(datum => datum.spt42).length
+        empty.isSpt15 = !data.filter(datum => datum.spt15).length
+        empty.isSptPpn = !data.filter(datum => datum.sptPpn).length
+        empty.isSptPpnPut = !data.filter(datum => datum.sptPpnPut).length
+        empty.isSptPpnDm = !data.filter(datum => datum.sptPpnDm).length
       })
       
       sortTahun([listSpt])
@@ -345,18 +346,19 @@ class SIDJP {
         return text.replace(/\s/g, '').replace(/,/g, '.')
       }
       
-      const penghasilan = {
-        a: format($(rows.get(18)).children().last().prev().text().trim()),
-        b: format($(rows.get(19)).children().last().prev().text().trim()),
-        c: format($(rows.get(20)).children().last().prev().text().trim()),
-        d: format($(rows.get(21)).children().last().prev().text().trim()),
-        e: format($(rows.get(22)).children().last().prev().text().trim()),
-        f: format($(rows.get(23)).children().last().prev().text().trim()),
-        g: format($(rows.get(24)).children().last().prev().text().trim()),
-        h: format($(rows.get(25)).children().last().prev().text().trim()),
-        i: format($(rows.get(26)).children().last().prev().text().trim()),
-        j: format($(rows.get(28)).children().last().prev().text().trim()),
-      }
+      const penghasilan = [
+        '',
+        format($(rows.get(18)).children().last().prev().text().trim()),
+        format($(rows.get(19)).children().last().prev().text().trim()),
+        format($(rows.get(20)).children().last().prev().text().trim()),
+        format($(rows.get(21)).children().last().prev().text().trim()),
+        format($(rows.get(22)).children().last().prev().text().trim()),
+        format($(rows.get(23)).children().last().prev().text().trim()),
+        format($(rows.get(24)).children().last().prev().text().trim()),
+        format($(rows.get(25)).children().last().prev().text().trim()),
+        format($(rows.get(26)).children().last().prev().text().trim()),
+        format($(rows.get(28)).children().last().prev().text().trim()),
+      ]
 
       return penghasilan
     } catch (err) {
@@ -415,6 +417,8 @@ class SIDJP {
       const listPengurus = this.listPengurus
       const listPenghasilan = this.listPenghasilan
 
+      const dataPenghasilan = []
+
       await Promise.all(latestSptTahunan.map(async spt => {
         const { tahun } = spt
         
@@ -422,20 +426,38 @@ class SIDJP {
 
         const pemegangSaham = { tahun, data: [] }
         const pengurus = { tahun, data: [] }
-        const penghasilan = { tahun, data: {} }
 
         detailSptTahunan.forEach(e => {
           pemegangSaham.data.push(...e.pemegangSaham)
           pengurus.data.push(...e.pengurus)
-          penghasilan.data = e.penghasilan
+          dataPenghasilan.push({ tahun, data: e.penghasilan })
         })
 
         listPemegangSaham.push(pemegangSaham)
         listPengurus.push(pengurus)
-        listPenghasilan.push(penghasilan)
       }))
 
-      sortTahun([listPemegangSaham, listPengurus, listPenghasilan])
+      sortTahun([listPemegangSaham, listPengurus, dataPenghasilan])
+      
+      dataPenghasilan.forEach(penghasilan => {
+        listPenghasilan.tahun.push(penghasilan.tahun)
+        listPenghasilan.data.push(penghasilan.data)
+      })
+
+      listPenghasilan.data = transposeArray(listPenghasilan.data)
+      
+      listPenghasilan.data[0].unshift('1.', 'PENGHASILAN NETO KOMERSIAL DALAM NEGERI')
+      listPenghasilan.data[1].unshift('', 'a. PEREDARAN USAHA')
+      listPenghasilan.data[2].unshift('', 'b. HARGA POKOK PENJUALAN')
+      listPenghasilan.data[3].unshift('', 'c. BIAYA USAHA LAINNYA')
+      listPenghasilan.data[4].unshift('', 'd. PENGHASILAN NETO DARI USAHA ( 1a - 1b - 1c )')
+      listPenghasilan.data[5].unshift('', 'e. PENGHASILAN DARI LUAR USAHA')
+      listPenghasilan.data[6].unshift('', 'f. BIAYA DARI LUAR USAHA')
+      listPenghasilan.data[7].unshift('', 'g. PENGHASILAN NETO DARI LUAR USAHA')
+      listPenghasilan.data[8].unshift('', 'h. JUMLAH')
+      listPenghasilan.data[9].unshift('2.', 'PENGHASILAN NETO KOMERSIAL LUAR NEGERI')
+      listPenghasilan.data[10].unshift('3.', 'JUMLAH PENGHASILAN NETO KOMERSIAL (1h + 2)')
+
       const result = { listPemegangSaham, listPengurus, listPenghasilan }
       
       if (typeof cb === 'function') return cb(null, result)
@@ -453,7 +475,7 @@ class SIDJP {
       
       const data = []
 
-      if (type === 'pm' || type === 'pk') {
+      if (type === 'pm' || type === 'pk' || type === 'pmTdd') {
         const jumlah = {
           nomor: '',
           nama: 'MASA ' + masa,
@@ -586,15 +608,17 @@ class SIDJP {
       const linkPmImpor = $('#AutoNumber1 > tbody > tr:nth-child(5) a').attr('href')
       const linkPk = $('#AutoNumber1 > tbody > tr:nth-child(4) a').attr('href')
       const linkEkspor = $('#AutoNumber1 > tbody > tr:nth-child(3) a').attr('href')
+      const linkPmTdd = $('#AutoNumber1 > tbody > tr:nth-child(7) a').attr('href')
 
-      const [pajakMasukan, pajakMasukanImpor, pajakKeluaran, ekspor] = await Promise.all([
+      const [pajakMasukan, pajakMasukanImpor, pajakKeluaran, ekspor, pmTdd] = await Promise.all([
         this._getDataDetailSptPpn(linkPm, 'pm', datum.masa),
         this._getDataDetailSptPpn(linkPmImpor, 'pmImpor', datum.masa),
         this._getDataDetailSptPpn(linkPk, 'pk', datum.masa),
         this._getDataDetailSptPpn(linkEkspor, 'ekspor', datum.masa),
+        this._getDataDetailSptPpn(linkPmTdd, 'pmTdd', datum.masa),
       ])
 
-      return { pajakMasukan, pajakMasukanImpor, pajakKeluaran, ekspor }
+      return { pajakMasukan, pajakMasukanImpor, pajakKeluaran, ekspor, pmTdd }
     } catch (err) {
       console.log(err)
       throw err
@@ -611,6 +635,7 @@ class SIDJP {
       const listPajakMasukanImpor = this.listPajakMasukanImpor
       const listPajakKeluaran = this.listPajakKeluaran
       const listEkspor = this.listEkspor
+      const listPajakMasukanTdd = this.listPajakMasukanTdd
 
       for (const spt of latestSptPpn) {
         const { tahun } = spt
@@ -619,14 +644,16 @@ class SIDJP {
         const dataPajakMasukanImpor = []
         const dataPajakKeluaran = []
         const dataEkspor = []
+        const dataPmTdd = []
 
         for (const datum of spt.data) {
-          const { pajakMasukan, pajakMasukanImpor, pajakKeluaran, ekspor } = await this._getDetailSptPpn(datum)
+          const { pajakMasukan, pajakMasukanImpor, pajakKeluaran, ekspor, pmTdd } = await this._getDetailSptPpn(datum)
 
           dataPajakMasukan.push(...pajakMasukan)
           dataPajakMasukanImpor.push(...pajakMasukanImpor)
           dataPajakKeluaran.push(...pajakKeluaran)
           dataEkspor.push(...ekspor)
+          dataPmTdd.push(...pmTdd)
         }
 
         listPajakMasukan.push({
@@ -648,10 +675,15 @@ class SIDJP {
           tahun,
           data: dataEkspor,
         })
+
+        listPajakMasukanTdd.push({
+          tahun,
+          data: dataPmTdd,
+        })
       }
 
-      sortTahun([listPajakMasukan, listPajakMasukanImpor, listPajakKeluaran, listEkspor])
-      const result = { listPajakMasukan, listPajakMasukanImpor, listPajakKeluaran, listEkspor }
+      sortTahun([listPajakMasukan, listPajakMasukanImpor, listPajakKeluaran, listEkspor, listPajakMasukanTdd])
+      const result = { listPajakMasukan, listPajakMasukanImpor, listPajakKeluaran, listEkspor, listPajakMasukanTdd }
       
       if (typeof cb === 'function') return cb(null, result)
       return result
