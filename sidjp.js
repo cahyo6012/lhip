@@ -647,6 +647,7 @@ class SIDJP {
         const dataPmTdd = []
 
         for (const datum of spt.data) {
+          if (!datum.link) continue
           const { pajakMasukan, pajakMasukanImpor, pajakKeluaran, ekspor, pmTdd } = await this._getDetailSptPpn(datum)
 
           dataPajakMasukan.push(...pajakMasukan)
