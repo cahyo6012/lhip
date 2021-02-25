@@ -1,38 +1,23 @@
 const request = require('request-promise')
 const cheerio = require('cheerio')
 
-function transposeArray(array = []) {
-  return array[0].map((x, i) => array.map(x => x[i]))
-}
-
-function sortTahun(array = []) {
-  for (let i = 0; i < array.length; i++) {
-    array[i].sort((a, b) => a.tahun - b.tahun )
-  }
-}
-
 class SIDJP {
-  constructor(username, password, npwp, listTahun = [new Date().getFullYear()], cb) {
-    this.jar = request.jar()
+  constructor(props = {}) {
     this.request = request.defaults({
       baseUrl: 'http://sidjp:7777/',
-      jar: this.jar,
+      jar: true,
       resolveWithFullResponse: true,
       rejectUnauthorized: false,
       followRedirect: true,
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36' }
     })
-    this.tanggalAkses = new Date()
-    this.npwp = npwp
-    this.listTahun = listTahun
-    
-    this.idCabang = ''
 
+    this.idCabang = ''
     this.profil = {}
     this.listSpt = []
     this.listPemegangSaham = []
     this.listPengurus = []
-    this.listPenghasilan = { tahun: ['No.', 'Uraian'], data: [] }
+    this.listPenghasilan = []
     this.listPajakMasukan = []
     this.listPajakMasukanImpor = []
     this.listPajakKeluaran = []
@@ -40,20 +25,80 @@ class SIDJP {
     this.listPajakMasukanTdd = []
     this.listIkhtisarPembayaran = []
     this.listTunggakan = []
+    
+    this.profilOk = false
+    this.listSptOk = false
+    this.listPemegangSahamOk = false
+    this.listPengurusOk = false
+    this.listPenghasilanOk = false
+    this.listPajakMasukanOk = false
+    this.listPajakMasukanImporOk = false
+    this.listPajakKeluaranOk = false
+    this.listEksporOk = false
+    this.listPajakMasukanTddOk = false
+    this.listIkhtisarPembayaranOk = false
+    this.listTunggakanOk = false
+    
+    Object.assign(this, props)
 
-    return this.login(username, password, cb)
+    this.isLoggedIn = false
+    this.tanggalAkses = new Date()
   }
 
-  async _setWp(cb) {
+  isCompleted() {
+    return (
+      this.profilOk &&
+      this.listSptOk &&
+      this.listPemegangSahamOk &&
+      this.listPengurusOk &&
+      this.listPenghasilanOk &&
+      this.listPajakMasukanOk &&
+      this.listPajakMasukanImporOk &&
+      this.listPajakKeluaranOk &&
+      this.listEksporOk &&
+      this.listPajakMasukanTddOk &&
+      this.listIkhtisarPembayaranOk &&
+      this.listTunggakanOk
+    )
+  }
+
+  async login({ username, password }, cb) {
     try {
-      if (!this.npwp) throw new Error('NPWP tidak boleh kosong.')
-      if (this.npwp.length !== 15) throw new Error('NPWP tidak valid.')
+      if (!username || !password) throw new Error('Username atau Password tidak boleh kosong.')
+      const form = { i_1: username, i_2: password }
+      const res = await this.request.post('/SIDJP/sipt_web.home', { form })
+      if (!res.body.match(/coba sekali lagi/)) this.isLoggedIn = true
+
+      if (typeof cb === 'function') return cb(err, this)
+      return this
+    } catch (err) {
+      if (typeof cb === 'function') return cb(err)
+      throw err
+    }
+  }
+
+  logout(cb) {
+    return this.request.get('/SIDJP/sipt_web.logout')
+      .then(() => {
+        this.isLoggedIn = false
+        if (typeof cb === 'function') return cb()
+      })
+      .catch(err => {
+        if (typeof cb === 'function') return cb(err)
+        throw err
+      })
+  }
+
+  async _setWp(npwp, cb) {
+    try {
+      if (!npwp) throw new Error('NPWP tidak boleh kosong.')
+      if (npwp.length !== 15) throw new Error('NPWP tidak valid.')
 
       const form = {
         nama: '',
-        npwp1: this.npwp.slice(0,9),
-        npwp2: this.npwp.slice(9,12),
-        npwp3: this.npwp.slice(12),
+        npwp1: npwp.slice(0,9),
+        npwp2: npwp.slice(9,12),
+        npwp3: npwp.slice(12),
         jenis_wp: 0,
         tahun_pajak: new Date().getFullYear(),
       }
@@ -74,37 +119,10 @@ class SIDJP {
     }
   }
 
-  async login(username, password, cb) {
+  async getProfil(npwp, cb) {
     try {
-      if (!username || !password) throw new Error('Username atau Password tidak boleh kosong.')
-      const form = { i_1: username, i_2: password }
-      const res = await this.request.post('/SIDJP/sipt_web.home', { form })
-      if (res.body.match(/coba sekali lagi/)) throw new Error('Username atau Password salah.')
-
-      await this._setWp()
-
-      if (typeof cb === 'function') return cb(err, this)
-      return this
-    } catch (err) {
-      if (typeof cb === 'function') return cb(err)
-      throw err
-    }
-  }
-
-  logout(cb) {
-    return this.request.get('/SIDJP/sipt_web.logout')
-      .then(() => {
-        if (typeof cb === 'function') return cb()
-        return
-      })
-      .catch(err => {
-        if (typeof cb === 'function') return cb(err)
-        throw err
-      })
-  }
-
-  async getProfil(cb) {
-    try {
+      await this._setWp(npwp)
+      
       const qs = {
         idcabang: this.idCabang,
         tahun: this.tanggalAkses.getFullYear(),
@@ -116,6 +134,9 @@ class SIDJP {
       const rows = $('table[width="90%"] table[width="100%"] tr')
 
       const profil = this.profil
+      profil.jenisWp = $('td[width="800"]').text().trim().match(/\w+$/)[0] === 'BADAN'
+        ? 'Badan'
+        : 'Orang Pribadi'
       profil.npwp = $('td', rows.get(0)).last().text().trim()
       profil.namaWp = $('td', rows.get(1)).last().text().trim()
       profil.alamat = $('td', rows.get(2)).last().text().trim()
@@ -144,8 +165,9 @@ class SIDJP {
       profil.penanggungJawab = $('td', rows.get(23)).last().text().trim()
       profil.juruSita = $('td', rows.get(24)).last().text().trim()
 
-      if (typeof cb === 'function') cb(null, profil)
-      return profil
+      this.profilOk = true
+      
+      if (typeof cb === 'function') cb()
     } catch (err) {
       if (typeof cb === 'function') return cb(err)
       throw err
@@ -194,19 +216,6 @@ class SIDJP {
             link: $('a', cells.get(4)).attr('href'),
           }
 
-          switch (datum.jenisSpt) {
-            case 'SPT Tahunan PPh Badan': datum.isSptTahunan = true; break
-            case 'SPT Masa PPh Pasal 25': datum.isSpt25 = true; break
-            case 'SPT Masa PPh Pasal 21/26': datum.isSpt21 = true; break
-            case 'SPT Masa PPh Pasal 22': datum.isSpt22 = true; break
-            case 'SPT Masa PPh Pasal 23/26': datum.isSpt23 = true; break
-            case 'SPT Masa PPh Pasal 4 ayat (2)': datum.isSpt42 = true; break
-            case 'SPT Masa PPh Pasal 15': datum.isSpt15 = true; break
-            case 'SPT Masa PPN dan PPnBM': datum.isSptPpn = true; break
-            case 'SPT Masa PPN Pemungut': datum.isSptPpnPut = true; break
-            case 'SPT Masa PPN Pedagang Eceran': datum.isSptPpnDm = true; break
-          }
-
           data.push(datum)
         })
 
@@ -216,7 +225,7 @@ class SIDJP {
     }
   }
 
-  async getSpt(cb) {
+  async getSpt(listTahun = [new Date().getFullYear()], cb) {
     try {
       const link = await this._getDetailSptLink()
       const res = await this.request.get(link)
@@ -224,7 +233,6 @@ class SIDJP {
       
       const anchors = $('table[cellpadding="5"] > tbody > tr').last().find('a')
 
-      const listTahun = this.listTahun
       const listSpt = this.listSpt
       
       await Promise.all(listTahun.map(async tahun => {
@@ -233,27 +241,12 @@ class SIDJP {
 
         const data = await this._getDataSpt(link)
 
-        listSpt.push({ tahun, empty: {}, data })
+        listSpt.push({ tahun, data })
       }))
-
-      listSpt.forEach(spt => {
-        const { empty, data } = spt
-        empty.isSptTahunan = !data.filter(datum => datum.sptTahunan).length
-        empty.isSpt25 = !data.filter(datum => datum.spt25).length
-        empty.isSpt21 = !data.filter(datum => datum.spt21).length
-        empty.isSpt22 = !data.filter(datum => datum.spt22).length
-        empty.isSpt23 = !data.filter(datum => datum.spt23).length
-        empty.isSpt42 = !data.filter(datum => datum.spt42).length
-        empty.isSpt15 = !data.filter(datum => datum.spt15).length
-        empty.isSptPpn = !data.filter(datum => datum.sptPpn).length
-        empty.isSptPpnPut = !data.filter(datum => datum.sptPpnPut).length
-        empty.isSptPpnDm = !data.filter(datum => datum.sptPpnDm).length
-      })
       
-      sortTahun([listSpt])
+      this.listSptOk = true
       
-      if (typeof cb === 'function') return cb(null, listSpt)
-      return listSpt
+      if (typeof cb === 'function') return cb()
     } catch (err) {
       if (typeof cb === 'function') return cb(err)
       throw err
@@ -265,7 +258,7 @@ class SIDJP {
 
     this.listSpt.forEach((spt, i) => spt.data
       .filter(datum => datum.jenisSpt === jenis)
-      .forEach(datum => {
+      .forEach((datum, j) => {
         const currentData = latestSpt[i].data
 
         const idx = currentData.findIndex(e => e.masa === datum.masa)
@@ -273,7 +266,7 @@ class SIDJP {
           return currentData.push(datum)
         else if (
           currentData[idx].pembetulan === 'Normal' ||
-          currentData.pembetulan.match(/\d$/)[0] < datum.pembetulan.match(/\d$/)[0]
+          currentData[idx].pembetulan.match(/\d$/)[0] < datum.pembetulan.match(/\d$/)[0]
         ) return currentData[idx] = datum
       }))
     
@@ -347,7 +340,6 @@ class SIDJP {
       }
       
       const penghasilan = [
-        '',
         format($(rows.get(18)).children().last().prev().text().trim()),
         format($(rows.get(19)).children().last().prev().text().trim()),
         format($(rows.get(20)).children().last().prev().text().trim()),
@@ -383,13 +375,18 @@ class SIDJP {
         return this.request.get('/SIDJP/spt/' + link)
       })
       .catch(err => {
-        console.log(err)
         throw err
       })
   }
 
   async _getDetailSptTahunan(datum) {
     try {
+      if (!datum.link) return {
+        pemegangSaham: [],
+        pengurus: [],
+        penghasilan: [],
+      }
+
       const res = await this._openSpt(datum.link)
 
       const $ = cheerio.load(res.body)
@@ -407,17 +404,15 @@ class SIDJP {
     }
   }
 
-  async getDetailSptTahunan(cb) {
+  async getDetailSptTahunan(listTahun = [new Date().getFullYear()], cb) {
     try {
-      if (!this.listSpt.length) await this.getSpt()
+      if (!this.listSpt.length) await this.getSpt(listTahun)
 
-      const latestSptTahunan = this._getLatestSpt('SPT Tahunan PPh Badan')
+      const latestSptTahunan = this._getLatestSpt(`SPT Tahunan PPh ${this.profil.jenisWp}`)
 
       const listPemegangSaham = this.listPemegangSaham
       const listPengurus = this.listPengurus
       const listPenghasilan = this.listPenghasilan
-
-      const dataPenghasilan = []
 
       await Promise.all(latestSptTahunan.map(async spt => {
         const { tahun } = spt
@@ -426,42 +421,24 @@ class SIDJP {
 
         const pemegangSaham = { tahun, data: [] }
         const pengurus = { tahun, data: [] }
+        const penghasilan = { tahun, data: [] }
 
         detailSptTahunan.forEach(e => {
           pemegangSaham.data.push(...e.pemegangSaham)
           pengurus.data.push(...e.pengurus)
-          dataPenghasilan.push({ tahun, data: e.penghasilan })
+          penghasilan.data.push(...e.penghasilan)
         })
 
         listPemegangSaham.push(pemegangSaham)
         listPengurus.push(pengurus)
+        listPenghasilan.push(penghasilan)
       }))
-
-      sortTahun([listPemegangSaham, listPengurus, dataPenghasilan])
       
-      dataPenghasilan.forEach(penghasilan => {
-        listPenghasilan.tahun.push(penghasilan.tahun)
-        listPenghasilan.data.push(penghasilan.data)
-      })
-
-      listPenghasilan.data = transposeArray(listPenghasilan.data)
+      this.listPemegangSahamOk = true
+      this.listPengurusOk = true
+      this.listPenghasilanOk = true
       
-      listPenghasilan.data[0].unshift('1.', 'PENGHASILAN NETO KOMERSIAL DALAM NEGERI')
-      listPenghasilan.data[1].unshift('', 'a. PEREDARAN USAHA')
-      listPenghasilan.data[2].unshift('', 'b. HARGA POKOK PENJUALAN')
-      listPenghasilan.data[3].unshift('', 'c. BIAYA USAHA LAINNYA')
-      listPenghasilan.data[4].unshift('', 'd. PENGHASILAN NETO DARI USAHA ( 1a - 1b - 1c )')
-      listPenghasilan.data[5].unshift('', 'e. PENGHASILAN DARI LUAR USAHA')
-      listPenghasilan.data[6].unshift('', 'f. BIAYA DARI LUAR USAHA')
-      listPenghasilan.data[7].unshift('', 'g. PENGHASILAN NETO DARI LUAR USAHA')
-      listPenghasilan.data[8].unshift('', 'h. JUMLAH')
-      listPenghasilan.data[9].unshift('2.', 'PENGHASILAN NETO KOMERSIAL LUAR NEGERI')
-      listPenghasilan.data[10].unshift('3.', 'JUMLAH PENGHASILAN NETO KOMERSIAL (1h + 2)')
-
-      const result = { listPemegangSaham, listPengurus, listPenghasilan }
-      
-      if (typeof cb === 'function') return cb(null, result)
-      return result
+      if (typeof cb === 'function') return cb(null)
     } catch (err) {
       if (typeof cb === 'function') return cb(err)
       throw err
@@ -476,30 +453,14 @@ class SIDJP {
       const data = []
 
       if (type === 'pm' || type === 'pk' || type === 'pmTdd') {
-        const jumlah = {
-          nomor: '',
-          nama: 'MASA ' + masa,
-          npwp: '',
-          kodeFaktur: '',
-          tanggalFaktur: '',
-          dpp: 0,
-          ppn: 0,
-          ppnbm: 0,
-        }
-  
-        data.push(jumlah)
-  
         const rows = $('table:nth-child(3) > tbody > tr')
+
         for (let i = 2; i < rows.length - 2; i++) {
           const cols = $(rows.get(i)).children()
           
           const dpp = +$(cols.get(5)).text().trim().replace(/,/g, '')
           const ppn = +$(cols.get(6)).text().trim().replace(/,/g, '')
           const ppnbm = +$(cols.get(7)).text().trim().replace(/,/g, '')
-          
-          jumlah.dpp += dpp
-          jumlah.ppn += ppn
-          jumlah.ppnbm += ppnbm
   
           data.push({
             nomor: $(cols.get(0)).text().trim(),
@@ -510,53 +471,21 @@ class SIDJP {
             dpp: dpp.toLocaleString('id'),
             ppn: ppn.toLocaleString('id'),
             ppnbm: ppnbm.toLocaleString('id'),
+            masa,
           })
         }
-  
-        jumlah.dpp = jumlah.dpp.toLocaleString('id')
-        jumlah.ppn = jumlah.ppn.toLocaleString('id')
-        jumlah.ppnbm = jumlah.ppnbm.toLocaleString('id')
-
-        data.push({
-          nomor: '',
-          nama: '',
-          npwp: '',
-          kodeFaktur: '',
-          tanggalFaktur: '',
-          dpp: '',
-          ppn: '',
-          ppnbm: '',
-        })
       } else if (type === 'pmImpor' || type === 'ekspor') {
-        const jumlah = {
-          nomor: '',
-          nama: 'MASA ' + masa,
-          nomorDokumen: '',
-          tanggalDokumen: '',
-          dpp: 0,
-        }
-
-        if (type === 'pmImpor') {
-          jumlah.ppn = 0
-          jumlah.ppnbm = 0
-        }
-  
-        data.push(jumlah)
-  
         const rows = $('table:nth-child(3) > tbody > tr')
+
         for (let i = 2; i < rows.length - 2; i++) {
           const cols = $(rows.get(i)).children()
           
           const dpp = +$(cols.get(4)).text().trim().replace(/,/g, '')
-          jumlah.dpp += dpp
           
           let ppn, ppnbm
           if (type === 'pmImpor') {
             ppn = +$(cols.get(5)).text().trim().replace(/,/g, '')
             ppnbm = +$(cols.get(6)).text().trim().replace(/,/g, '')
-            
-            jumlah.ppn += ppn
-            jumlah.ppnbm += ppnbm
           }
           
           data.push({
@@ -569,38 +498,27 @@ class SIDJP {
               ppn: ppn.toLocaleString('id'),
               ppnbm: ppnbm.toLocaleString('id'),
             } : {}),
+            masa,
           })
         }
-        
-        jumlah.dpp = jumlah.dpp.toLocaleString('id')
-
-        if (type === 'ppnImpor') {
-          jumlah.ppn = jumlah.ppn.toLocaleString('id')
-          jumlah.ppnbm = jumlah.ppnbm.toLocaleString('id')
-        }
-
-        data.push({
-          nomor: '',
-          nama: '',
-          nomorDokumen: '',
-          tanggalDokumen: '',
-          dpp: '',
-          ...(type === 'ppnImpor' ? {
-            ppn: '',
-            ppnbm: '',
-          } : {}),
-        })
       }
 
       return data
     } catch (err) {
-      console.log(err)
       throw err
     }
   }
 
   async _getDetailSptPpn(datum) {
     try {
+      if (!datum.link) return {
+        pajakMasukan: [],
+        pajakMasukanImpor: [],
+        pajakKeluaran: [],
+        ekspor: [],
+        pajakMasukanTdd: [],
+      }
+
       const res = await this._openSpt(datum.link)
 
       const $ = cheerio.load(res.body)
@@ -610,7 +528,7 @@ class SIDJP {
       const linkEkspor = $('#AutoNumber1 > tbody > tr:nth-child(3) a').attr('href')
       const linkPmTdd = $('#AutoNumber1 > tbody > tr:nth-child(7) a').attr('href')
 
-      const [pajakMasukan, pajakMasukanImpor, pajakKeluaran, ekspor, pmTdd] = await Promise.all([
+      const [pajakMasukan, pajakMasukanImpor, pajakKeluaran, ekspor, pajakMasukanTdd] = await Promise.all([
         this._getDataDetailSptPpn(linkPm, 'pm', datum.masa),
         this._getDataDetailSptPpn(linkPmImpor, 'pmImpor', datum.masa),
         this._getDataDetailSptPpn(linkPk, 'pk', datum.masa),
@@ -618,16 +536,21 @@ class SIDJP {
         this._getDataDetailSptPpn(linkPmTdd, 'pmTdd', datum.masa),
       ])
 
-      return { pajakMasukan, pajakMasukanImpor, pajakKeluaran, ekspor, pmTdd }
+      return {
+        dataPajakMasukan: pajakMasukan,
+        dataPajakMasukanImpor: pajakMasukanImpor,
+        dataPajakKeluaran: pajakKeluaran,
+        dataEkspor: ekspor,
+        dataPajakMasukanTdd: pajakMasukanTdd
+      }
     } catch (err) {
-      console.log(err)
       throw err
     }
   }
 
-  async getDetailSptPpn(cb) {
+  async getDetailSptPpn(listTahun = [new Date().getFullYear()], cb) {
     try {
-      if (!this.listSpt.length) await this.getSpt()
+      if (!this.listSpt.length) await this.getSpt(listTahun)
 
       const latestSptPpn = this._getLatestSpt('SPT Masa PPN dan PPnBM')
       
@@ -637,56 +560,39 @@ class SIDJP {
       const listEkspor = this.listEkspor
       const listPajakMasukanTdd = this.listPajakMasukanTdd
 
-      for (const spt of latestSptPpn) {
+      for (const spt of latestSptPpn.sort((a, b) => a.tahun - b.tahun)) {
         const { tahun } = spt
   
-        const dataPajakMasukan = []
-        const dataPajakMasukanImpor = []
-        const dataPajakKeluaran = []
-        const dataEkspor = []
-        const dataPmTdd = []
+        const pajakMasukan = { tahun, data: [] }
+        const pajakMasukanImpor = { tahun, data: [] }
+        const pajakKeluaran = { tahun, data: [] }
+        const ekspor = { tahun, data: [] }
+        const pajakMasukanTdd = { tahun, data: [] }
 
         for (const datum of spt.data) {
-          const { pajakMasukan, pajakMasukanImpor, pajakKeluaran, ekspor, pmTdd } = await this._getDetailSptPpn(datum)
+          const { dataPajakMasukan, dataPajakMasukanImpor, dataPajakKeluaran, dataEkspor, dataPajakMasukanTdd } = await this._getDetailSptPpn(datum)
 
-          dataPajakMasukan.push(...pajakMasukan)
-          dataPajakMasukanImpor.push(...pajakMasukanImpor)
-          dataPajakKeluaran.push(...pajakKeluaran)
-          dataEkspor.push(...ekspor)
-          dataPmTdd.push(...pmTdd)
+          pajakMasukan.data.push(...dataPajakMasukan)
+          pajakMasukanImpor.data.push(...dataPajakMasukanImpor)
+          pajakKeluaran.data.push(...dataPajakKeluaran)
+          ekspor.data.push(...dataEkspor)
+          pajakMasukanTdd.data.push(...dataPajakMasukanTdd)
         }
 
-        listPajakMasukan.push({
-          tahun,
-          data: dataPajakMasukan,
-        })
-
-        listPajakMasukanImpor.push({
-          tahun,
-          data: dataPajakMasukanImpor,
-        })
-
-        listPajakKeluaran.push({
-          tahun,
-          data: dataPajakKeluaran,
-        })
-
-        listEkspor.push({
-          tahun,
-          data: dataEkspor,
-        })
-
-        listPajakMasukanTdd.push({
-          tahun,
-          data: dataPmTdd,
-        })
+        listPajakMasukan.push(pajakMasukan)
+        listPajakMasukanImpor.push(pajakMasukanImpor)
+        listPajakKeluaran.push(pajakKeluaran)
+        listEkspor.push(ekspor)
+        listPajakMasukanTdd.push(pajakMasukanTdd)
       }
-
-      sortTahun([listPajakMasukan, listPajakMasukanImpor, listPajakKeluaran, listEkspor, listPajakMasukanTdd])
-      const result = { listPajakMasukan, listPajakMasukanImpor, listPajakKeluaran, listEkspor, listPajakMasukanTdd }
       
-      if (typeof cb === 'function') return cb(null, result)
-      return result
+      this.listPajakMasukanOk = true
+      this.listPajakMasukanImporOk = true
+      this.listPajakKeluaranOk = true
+      this.listEksporOk = true
+      this.listPajakMasukanTddOk = true
+      
+      if (typeof cb === 'function') return cb()
     } catch (err) {
       if (typeof cb === 'function') return cb(err)
       throw err
@@ -695,35 +601,34 @@ class SIDJP {
 
   async _getIkhtisarPembayaran(tahun) {
     try {
-      const ikhtisarPembayaran = { tahun, keys: ['Masa'], data: [] }
-      
       const qs = { IDCABANG: this.idCabang, TAHUN: tahun }
       const res = await this.request.get('/SIDJP/BPLSTIKHTBYRIFR', { qs })
       
       const $ = cheerio.load(res.body)
       const rows = $('table[width="1600"] > tbody > tr')
-
+      
+      const ikhtisarPembayaran = { tahun, data: [] }
       for (let i = 1; i < rows.length; i += 2) {
         const cols = $(rows.get(i)).children()
-        
-        ikhtisarPembayaran.keys.push($(cols.get(0)).text().trim().split('(')[0].trim())
 
-        const data = []
-        ikhtisarPembayaran.data.push(data)
-
-        for (let j = 1; j <= 14; j++) {
-          data.push($(cols.get(j)).text().trim().split('.')[0].replace(/,/g, '.'))
-        }
+        ikhtisarPembayaran.data.push({
+          jenisPajak: $(cols.get(0)).text().trim().split('(')[0].trim(),
+          jumlah: $(cols.get(1)).text().trim().split('.')[0].replace(/,/g, '.'),
+          januari: $(cols.get(2)).text().trim().split('.')[0].replace(/,/g, '.'),
+          februari: $(cols.get(3)).text().trim().split('.')[0].replace(/,/g, '.'),
+          maret: $(cols.get(4)).text().trim().split('.')[0].replace(/,/g, '.'),
+          april: $(cols.get(5)).text().trim().split('.')[0].replace(/,/g, '.'),
+          mei: $(cols.get(6)).text().trim().split('.')[0].replace(/,/g, '.'),
+          juni: $(cols.get(7)).text().trim().split('.')[0].replace(/,/g, '.'),
+          juli: $(cols.get(8)).text().trim().split('.')[0].replace(/,/g, '.'),
+          agustus: $(cols.get(9)).text().trim().split('.')[0].replace(/,/g, '.'),
+          september: $(cols.get(10)).text().trim().split('.')[0].replace(/,/g, '.'),
+          oktober: $(cols.get(11)).text().trim().split('.')[0].replace(/,/g, '.'),
+          november: $(cols.get(12)).text().trim().split('.')[0].replace(/,/g, '.'),
+          desember: $(cols.get(13)).text().trim().split('.')[0].replace(/,/g, '.'),
+          tahunan: $(cols.get(14)).text().trim().split('.')[0].replace(/,/g, '.'),
+        })
       }
-
-      ikhtisarPembayaran.data = transposeArray(ikhtisarPembayaran.data)
-      ikhtisarPembayaran.data.forEach((datum, i) => {
-        let index = i
-        if (i === 0) index = 'Jumlah'
-        if (i === 13) index = 'Tahunan'
-        
-        datum.unshift(index)
-      })
 
       return ikhtisarPembayaran
     } catch (err) {
@@ -731,15 +636,15 @@ class SIDJP {
     }
   }
 
-  async getIkhtisarPembayaran(cb) {
+  async getIkhtisarPembayaran(listTahun = [new Date().getFullYear()], cb) {
     try {
       const listIkhtisarPembayaran = this.listIkhtisarPembayaran
 
-      const dataIkhtisarPembayaran = await Promise.all(this.listTahun.map(tahun => this._getIkhtisarPembayaran(tahun)))
+      const dataIkhtisarPembayaran = await Promise.all(listTahun.map(tahun => this._getIkhtisarPembayaran(tahun)))
       dataIkhtisarPembayaran.forEach(ikhtisarPembayaran => listIkhtisarPembayaran.push(ikhtisarPembayaran))
 
-      if (typeof cb === 'function') return cb(null, listIkhtisarPembayaran)
-      return listIkhtisarPembayaran
+      if (typeof cb === 'function') return cb()
+      return
     } catch (err) {
       if (typeof cb === 'function') return cb(err)
       throw err
@@ -748,7 +653,7 @@ class SIDJP {
 
   async _getTunggakan(tahun) {
     try {
-      const tunggakan = { tahun, empty: false, data: [] }
+      const tunggakan = { tahun, data: [] }
 
       const qs = {
         idcabang: this.idCabang,
@@ -790,23 +695,22 @@ class SIDJP {
         })
       }
 
-      if (!tunggakan.data.length) tunggakan.empty = true
-
       return tunggakan
     } catch (err) {
       throw err
     }
   }
 
-  async getTunggakan(cb) {
+  async getTunggakan(listTahun = [new Date().getFullYear()], cb) {
     try {
       const listTunggakan = this.listTunggakan
 
-      const dataTunggakan = await Promise.all(this.listTahun.map(tahun => this._getTunggakan(tahun)))
+      const dataTunggakan = await Promise.all(listTahun.map(tahun => this._getTunggakan(tahun)))
       dataTunggakan.forEach(tunggakan => listTunggakan.push(tunggakan))
 
-      if (typeof cb === 'function') return cb(null, listTunggakan)
-      return listTunggakan      
+      this.listTunggakanOk = true
+
+      if (typeof cb === 'function') return cb()
     } catch (err) {
       if (typeof cb === 'function') return cb(err)
       throw err

@@ -1,12 +1,14 @@
-const SIDJP = require('./sidjp')
-const Approweb = require('./approweb')
-const ALPP = require('./alpp')
-const Appportal = require('./appportal')
 const PizZip = require('pizzip')
 const Docxtemplater = require('docxtemplater')
 const expressions = require('angular-expressions')
 const fs = require('fs')
 const path = require('path')
+const { createLogger, createError } = require('./logger')
+const makeData = require('./makeData')
+const SIDJP = require('./sidjp')
+const Approweb = require('./approweb')
+const ALPP = require('./alpp')
+const Appportal = require('./appportal')
 const akun = require('./config/akun')
 
 const templatePath = path.resolve(__dirname, 'template')
@@ -35,10 +37,6 @@ function errorHandler(error) {
   throw error
 }
 
-expressions.filters.isEmpty = input => {
-  return "- Tidak Ada Data -"
-}
-
 function parser(tag) {
   if (tag === '.') {
     return {
@@ -61,9 +59,19 @@ function parser(tag) {
   }
 }
 
-function getSettingData() {
-  const data = require('./config/setting')
-  Object.assign(data, { initNpwp: data.npwp, npwp: undefined })
+function initData(wpPath) {
+  const data = { sidjp: {}, approweb: {}, alpp: {}, appportal: {} }
+  
+  const sidjpPath = path.resolve(wpPath, 'sidjp.json')
+  const approwebPath = path.resolve(wpPath, 'approweb.json')
+  const alppPath = path.resolve(wpPath, 'alpp.json')
+  const appportalPath = path.resolve(wpPath, 'appportal.json')
+
+  if (fs.existsSync(sidjpPath)) data.sidjp = require(sidjpPath)
+  if (fs.existsSync(approwebPath)) data.approweb = require(approwebPath)
+  if (fs.existsSync(alppPath)) data.alpp = require(alppPath)
+  if (fs.existsSync(appportalPath)) data.appportal = require(appportalPath)
+
   return data
 }
 
@@ -76,106 +84,239 @@ function createProfilFolder(npwp) {
 }
 
 ;(async () => {
-  const data = getSettingData()
-  
-  const wpPath = createProfilFolder(data.initNpwp)
-  
+  const setting = require('./config/setting')
+
+  const wpPath = createProfilFolder(setting.npwp)
+  const logger = createLogger(wpPath)
+
+  let data = initData(wpPath)
+
+  const sidjp = new SIDJP(data.sidjp)
+  const approweb = new Approweb(data.approweb, { executablePath: setting.chromePath })
+  const alpp = new ALPP(data.alpp)
+  const appportal = new Appportal(data.appportal)
+
   try {
-    if (fs.existsSync(path.resolve(wpPath, 'data.json'))) {
-      Object.assign(data, require(path.resolve(wpPath, 'data.json')))
+    if (!sidjp.isCompleted()) {
+      logger.info('sidjp.login ...')
+      await sidjp.login(akun.sidjp)
+      logger.info('sidjp.login - OK')
     }
+  } catch (err) {
+    logger.error(createError('sidjp.login - FAIL'))
+    logger.error(createError(err))
+  }
 
-    const sidjp = await new SIDJP(akun.sidjp.username, akun.sidjp.password, data.initNpwp, data.tahun)
-    Object.assign(data, { tanggalAksesSidjp: sidjp.tanggalAkses.toLocaleDateString('en-gb') })
-
-    if (!data.npwp) {
-      const profil = await sidjp.getProfil()
-      Object.assign(data, profil)
-    
-      fs.writeFileSync(path.resolve(wpPath, 'data.json'), JSON.stringify(data, null, 4))
-    }
-
-    if (!data.spt) {
-      const spt = await sidjp.getSpt()
-      Object.assign(data, { spt })
-    
-      fs.writeFileSync(path.resolve(wpPath, 'data.json'), JSON.stringify(data, null, 4))
-    }
-
-    if (!data.pemegangSaham || !data.pengurus || !data.sptTahunan) {
-      const { listPemegangSaham, listPengurus, listPenghasilan } = await sidjp.getDetailSptTahunan()
-      Object.assign(data, { pemegangSaham: listPemegangSaham, pengurus: listPengurus, sptTahunan: listPenghasilan })
-    
-      fs.writeFileSync(path.resolve(wpPath, 'data.json'), JSON.stringify(data, null, 4))
+  if (sidjp.isLoggedIn) {
+    try {
+      if (!sidjp.profil.npwp) {
+        logger.info('sidjp.profil ...')
+        await sidjp.getProfil(setting.npwp)
+        logger.info('sidjp.profil - OK')
+      }
+    } catch (err) {
+      logger.error(createError('sidjp.profil - FAIL'))
+      logger.error(createError(err))
     }
   
-    if (!data.pajakMasukan || !data.pajakMasukanImpor || !data.pajakKeluaran || !data.ekspor || !data.pajakMasukanTdd) {
-      const { listPajakMasukan, listPajakMasukanImpor, listPajakKeluaran, listEkspor, listPajakMasukanTdd } = await sidjp.getDetailSptPpn()
-      Object.assign(data, { pajakMasukan: listPajakMasukan, pajakMasukanImpor: listPajakMasukanImpor, pajakKeluaran: listPajakKeluaran, ekspor: listEkspor, pajakMasukanTdd: listPajakMasukanTdd })
-    
-      fs.writeFileSync(path.resolve(wpPath, 'data.json'), JSON.stringify(data, null, 4))
+    try {
+      if (!sidjp.profil.npwp) {
+        logger.info('sidjp.spt ...')
+        await sidjp.getSpt(setting.tahun)
+        logger.info('sidjp.spt - OK')
+      }
+    } catch (err) {
+      logger.error(createError('sidjp.spt - FAIL'))
+      logger.error(createError(err))
     }
-
-    if (!data.ikhtisarPembayaran) {
-      const ikhtisarPembayaran = await sidjp.getIkhtisarPembayaran()
-      Object.assign(data, { ikhtisarPembayaran })
-
-      fs.writeFileSync(path.resolve(wpPath, 'data.json'), JSON.stringify(data, null, 4))
+  
+    try {
+      if (!sidjp.listPemegangSaham.length || !sidjp.listPengurus.length || !sidjp.listPenghasilan.length) {
+        logger.info('sidjp.detailSptTahunan ...')
+        await sidjp.getDetailSptTahunan(setting.tahun)
+        logger.info('sidjp.detailSptTahunan - OK')
+      }
+    } catch (err) {
+      logger.error(createError('sidjp.detailSptTahunan - FAIL'))
+      logger.error(createError(err))
     }
-
-    if (!data.tunggakan) {
-      const tunggakan = await sidjp.getTunggakan()
-      Object.assign(data, { tunggakan })
-      
-      fs.writeFileSync(path.resolve(wpPath, 'data.json'), JSON.stringify(data, null, 4))
+  
+    try {
+      if (!sidjp.listPajakMasukan.length || !sidjp.listPajakMasukanImpor.length || !sidjp.listPajakKeluaran.length || !sidjp.listEkspor.length || !sidjp.listPajakMasukanTdd.length) {
+        logger.info('sidjp.detailSptPpn ...')
+        await sidjp.getDetailSptPpn(setting.tahun)
+        logger.info('sidjp.detailSptPpn - OK')
+      }
+    } catch (err) {
+      logger.error(createError('sidjp.detailSptPpn - FAIL'))
+      logger.error(createError(err))
     }
-
-    await sidjp.logout()
-
-    const approweb = await new Approweb(akun.approweb.username, akun.approweb.password, data.initNpwp, { executablePath: data.chromePath, headless: true })
-    Object.assign(data, { tanggalAksesApproweb: approweb.tanggalAkses.toLocaleDateString('en-gb') })
-    
-    if (!data.sp2dk) {
-      const sp2dk = await approweb.getSp2dk()
-      Object.assign(data, { sp2dk, sp2dkEmpty: !sp2dk.length })
-      
-      fs.writeFileSync(path.resolve(wpPath, 'data.json'), JSON.stringify(data, null, 4))
+  
+    try {
+      if (!sidjp.listIkhtisarPembayaran.length) {
+        logger.info('sidjp.ikhtisarPembayaran ...')
+        await sidjp.getIkhtisarPembayaran(setting.tahun)
+        logger.info('sidjp.ikhtisarPembayaran - OK')
+      }
+    } catch (err) {
+      logger.error(createError('sidjp.ikhtisarPembayaran - FAIL'))
+      logger.error(createError(err))
     }
-    
-    await approweb.logout()
-
-    const alpp = await new ALPP(akun.alpp.username, akun.alpp.password, data.initNpwp)
-    Object.assign(data, { tanggalAksesAlpp: alpp.tanggalAkses.toLocaleDateString('en-gb') })
-
-    if (!data.riwayatPemeriksaan) {
-      const riwayatPemeriksaan = await alpp.getRiwayatPemeriksaan()
-      Object.assign(data, { riwayatPemeriksaan, riwayatPemeriksaanEmpty: !riwayatPemeriksaan.length })
-
-      fs.writeFileSync(path.resolve(wpPath, 'data.json'), JSON.stringify(data, null, 4))
+  
+    try {
+      if (!sidjp.listTunggakan.length) {
+        logger.info('sidjp.tunggakan ...')
+        await sidjp.getTunggakan(setting.tahun)
+        logger.info('sidjp.tunggakan - OK')
+      }
+    } catch (err) {
+      logger.error(createError('sidjp.tunggakan - FAIL'))
+      logger.error(createError(err))
     }
-
-    await alpp.logout()
-
-    const appportal = await new Appportal(akun.appportal.username, akun.appportal.password, data.initNpwp, data.tahun)
-    Object.assign(data, { tanggalAksesAppportal: appportal.tanggalAkses.toLocaleDateString('en-gb') })
-    
-    if (!data.fakturPK || !data.fakturPM) {
-      const { fakturPK, fakturPM } = await appportal.getPKPM()
-      Object.assign(data, { fakturPK, fakturPM })
-
-      fs.writeFileSync(path.resolve(wpPath, 'data.json'), JSON.stringify(data, null, 4))
-      appportal.exportPkpmToExcel(path.resolve(wpPath, 'PKPM.xlsx'))
+  
+    try {
+      logger.info('sidjp.logout ...')
+      await sidjp.logout()
+      logger.info('sidjp.logout - OK')
+    } catch (err) {
+      logger.error(createError('sidjp.logout - FAIL'))
+      logger.error(createError(err))
     }
-
-    await appportal.logout()
-  } catch (err) {
-    console.log(err)
-    return false
   }
+
+  try {
+    if (!approweb.isCompleted()) {
+      logger.info('approweb.login ...')
+      await approweb.login(akun.approweb)
+      logger.info('approweb.login - OK')
+    }
+  } catch (err) {
+    logger.error(createError('approweb.login - FAIL'))
+    logger.error(createError(err))
+  }
+
+  if (approweb.isLoggedIn) {
+    try {
+      logger.info('approweb.setWp ...')
+      await approweb.setWp(setting.npwp)
+      logger.info('approweb.setWp - OK')
+    } catch (err) {
+      logger.error(createError('approweb.setWp - FAIL'))
+      logger.error(createError(err))
+    }
+    
+    try {
+      if (!approweb.listSp2dk.length) {
+        logger.info('approweb.sp2dk ...')
+        await approweb.getSp2dk()
+        logger.info('approweb.sp2dk - OK')
+      }
+    } catch (err) {
+      logger.error(createError('approweb.sp2dk - FAIL'))
+      logger.error(createError(err))
+    }
+
+    try {
+      logger.info('approweb.logout ...')
+      await approweb.logout()
+      logger.info('approweb.logout - OK')
+    } catch (err) {
+      logger.error(createError('approweb.logout - FAIL'))
+      logger.error(createError(err))
+    }
+  }
+
+  try {
+    if (!alpp.isCompleted()) {
+      logger.info('alpp.login ...')
+      await alpp.login(akun.alpp)
+      logger.info('alpp.login - OK')
+    }
+  } catch (err) {
+    logger.error(createError('alpp.login - FAIL'))
+    logger.error(createError(err))
+  }
+
+  if (alpp.isLoggedIn) {
+    try {
+      if (!alpp.listRiwayatPemeriksaan.length) {
+        logger.info('alpp.riwayatPemeriksaan ...')
+        await alpp.getRiwayatPemeriksaan(setting.npwp)
+        logger.info('alpp.riwayatPemeriksaan - OK')
+      }
+    } catch (err) {
+      logger.error(createError('alpp.riwayatPemeriksaan - FAIL'))
+      logger.error(createError(err))
+    }
+
+    try {
+      logger.info('alpp.logout ...')
+      await alpp.logout()
+      logger.info('alpp.logout - OK')
+    } catch (err) {
+      logger.error(createError('alpp.logout - FAIL'))
+      logger.error(createError(err))
+    }
+  }
+
+  try {
+    if (!appportal.isCompleted()) {
+      logger.info('appportal.login ...')
+      await appportal.login(akun.appportal)
+      logger.info('appportal.login - OK')
+    }
+  } catch (err) {
+    logger.error(createError('appportal.login - FAIL'))
+    logger.error(createError(err))
+  }
+
+  try {
+    if (!appportal.isCompleted()) {
+      logger.info('appportal.cekAksesPkpm ...')
+      await appportal.checkPkpmAccess()
+      logger.info('appportal.cekAksesPkpm - OK')
+    }
+  } catch (err) {
+    logger.error(createError('appportal.cekAksesPkpm - FAIL'))
+    logger.error(createError(err))
+  }
+
+  if (appportal.isLoggedIn && appportal.hasPkpmAccess) {
+    try {
+      if (!appportal.listPajakMasukan.length || !appportal.listPajakKeluaran.length) {
+        logger.info('appportal.pkpm ...')
+        await appportal.getPKPM(setting.npwp, setting.tahun)
+        logger.info('appportal.pkpm - OK')
+      }
+    } catch (err) {
+      logger.error(createError('appportal.pkpm - FAIL'))
+      logger.error(createError(err))
+    }
+
+    try {
+      logger.info('appportal.logout ...')
+      await appportal.logout()
+      logger.info('appportal.logout - OK')
+    } catch (err) {
+      logger.error(createError('appportal.logout - FAIL'))
+      logger.error(createError(err))
+    }
+  }
+
+  data = makeData({ setting, sidjp, approweb, alpp, appportal })
+  
+  logger.info('data.save ...')
+  fs.writeFileSync(path.resolve(wpPath, 'data.json'), JSON.stringify(data, null, 4))
+  fs.writeFileSync(path.resolve(wpPath, 'sidjp.json'), JSON.stringify(sidjp, null, 4))
+  fs.writeFileSync(path.resolve(wpPath, 'approweb.json'), JSON.stringify(approweb, null, 4))
+  fs.writeFileSync(path.resolve(wpPath, 'alpp.json'), JSON.stringify(alpp, null, 4))
+  fs.writeFileSync(path.resolve(wpPath, 'appportal.json'), JSON.stringify(appportal, null, 4))
+  logger.info('data.save - OK')
 
   fs.readdirSync(path.resolve(templatePath))
     .filter(file => !file.startsWith('~$'))
     .forEach(template => {
+      logger.info(`laporan.create - ${template} ...`)
       const content = fs.readFileSync(path.resolve(templatePath, template))
       const zip = new PizZip(content)
       let doc
@@ -194,5 +335,6 @@ function createProfilFolder(npwp) {
   
       const buf = doc.getZip().generate({ type: 'nodebuffer' })
       fs.writeFileSync(path.resolve(wpPath, template), buf)
+      logger.info(`laporan.create - ${template} - OK`)
     })
 })()

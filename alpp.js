@@ -2,11 +2,10 @@ const request = require('request-promise')
 const cheerio = require('cheerio')
 
 class ALPP {
-  constructor(username, password, npwp, cb) {
-    this.jar = request.jar()
+  constructor(props = {}) {
     this.request = request.defaults({
       baseUrl: 'https://10.245.2.84/alpp2',
-      jar: this.jar,
+      jar: true,
       resolveWithFullResponse: true,
       rejectUnauthorized: false,
       followRedirect: true,
@@ -17,24 +16,28 @@ class ALPP {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36',
       },
     })
-
-    this.npwp = npwp
-    this.tanggalAkses = new Date()
-
+    
     this.listRiwayatPemeriksaan = []
+    this.riwayatPemeriksaanOk = false
+    
+    Object.assign(this, props)
 
-    return this.login(username, password, cb)
+    this.isLoggedIn = false
+    this.tanggalAkses = new Date()
   }
 
-  async login(username, password, cb) {
+  isCompleted() {
+    return this.riwayatPemeriksaanOk
+  }
+
+  async login({ username, password }, cb) {
     try {
       const form = { username, password }
       const res = await this.request.post('/proses.php', { form })
 
-      if (res.request.uri.pathname === '/alpp2/proses.php') throw new Error('Username atau Password salah.')
+      if (res.request.uri.pathname !== '/alpp2/proses.php') this.isLoggedIn = true
       
-      if (typeof cb === 'function') return cb(null, this)
-      return this
+      if (typeof cb === 'function') return cb()
     } catch (err) {
       if (typeof cb === 'function') return cb(err)
       throw err
@@ -44,7 +47,7 @@ class ALPP {
   async logout(cb) {
     try {
       await this.request.get('/logoff.php')
-
+      this.isLoggedIn = false
       if (typeof cb === 'function') return cb()
     } catch (err) {
       if (typeof cb === 'function') return cb(err)
@@ -52,19 +55,18 @@ class ALPP {
     }
   }
 
-  async getRiwayatPemeriksaan(cb) {
+  async getRiwayatPemeriksaan(npwp, cb) {
     try {
       const listRiwayatPemeriksaan = this.listRiwayatPemeriksaan
 
       const qs = { module: 'riwayat' }
-      const form = { kriteria: 1, cari: this.npwp }
+      const form = { kriteria: 1, cari: npwp }
 
       const res = await this.request.post('/main.php', { qs, form })
       const $ = cheerio.load(res.body)
       const rows = $('#example7 > tbody > tr')
 
       rows.each((i, row) => {
-        if ($(row).text().trim() === 'No data available in table') return
 
         const cols = $(row).children()
         listRiwayatPemeriksaan.push({
@@ -80,6 +82,8 @@ class ALPP {
         })
       })
 
+      this.riwayatPemeriksaanOk = true
+      
       return listRiwayatPemeriksaan
     } catch (err) {
       if (typeof cb === 'function') return cb(err)

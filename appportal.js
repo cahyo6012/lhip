@@ -3,35 +3,41 @@ const cheerio = require('cheerio')
 const xlsx = require('xlsx')
 
 class Appportal {
-  constructor(username, password, npwp, listTahun = [new Date().getFullYear()], cb) {
-    this.jar = request.jar()
+  constructor(props = {}) {
     this.request = request.defaults({
       baseUrl: 'https://appportal/',
-      jar: this.jar,
+      jar: true,
       resolveWithFullResponse: true,
       rejectUnauthorized: false,
       followAllRedirects: true,
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36' },
     })
+
+    this.listPajakKeluaran = []
+    this.listPajakMasukan = []
+
+    this.listPajakKeluaranOk = true
+    this.listPajakMasukanOk = true
+    
+    Object.assign(this, props)
+
+    this.isLoggedIn = false
+    this.hasPkpmAccess = false
     this.tanggalAkses = new Date()
-    this.npwp = npwp
-    this.listTahun = listTahun
-
-    this.listPK = []
-    this.listPM = []
-
-    return this.login(username, password, cb)
   }
 
-  async login(username, password, cb) {
+  isCompleted() {
+    return this.listPajakKeluaranOk && this.listPajakMasukanOk
+  }
+
+  async login({ username, password }, cb) {
     try {
       const form = { username, password, sublogin: 'Login' }
       const res = await this.request.post('/login/login/loging_simpel', { form })
 
-      if (res.request.uri.pathname === '/login/login/loging_simpel') throw new Error('Username atau Password salah.')
+      if (res.request.uri.pathname !== '/login/login/loging_simpel') this.isLoggedIn = true
 
-      if (typeof cb === 'function') return cb(null, this)
-      return this
+      if (typeof cb === 'function') return cb()
     } catch (err) {
       if (typeof cb === 'function') return cb(err)
       throw err
@@ -41,9 +47,9 @@ class Appportal {
   async logout(cb) {
     try {
       await this.request.get('/portal/logout.php')
-      
+      this.isLoggedIn = false
+      this.hasPkpmAccess = false
       if (typeof cb === 'function') return cb()
-      return
     } catch (err) {
       if (typeof cb === 'function') return cb(err)
       throw err
@@ -53,20 +59,18 @@ class Appportal {
   async checkPkpmAccess(cb) {
     try {
       const res = await this.request.get('/pkpm')
+      this.hasPkpmAccess = !res.body.match(/akses_out\.php/)
 
-      const hasAccess = res.body.match(/akses_out\.php/) ? false : true
-
-      if (typeof cb === 'function') return cb(hasAccess)
-      return hasAccess
+      if (typeof cb === 'function') return cb()
     } catch (err) {
       if (typeof cb === 'function') return cb(err)
       throw err
     }
   }
 
-  async _getQ() {
+  async _getQ(npwp) {
     try {
-      const qs = { p1: this.npwp }
+      const qs = { p1: npwp }
       const res = await this.request.get('/pkpm/mfwpdetil.php', { qs })
       const { q } = res.body.match(/value="(?<q>\w+)" id="q"/).groups
       return q
@@ -136,14 +140,14 @@ class Appportal {
    })
   }
 
-  async getPKPM(cb) {
+  async getPKPM(npwp, listTahun = [new Date().getFullYear()], cb) {
     try {
-      const listPK = this.listPK
-      const listPM = this.listPM
+      const listPajakKeluaran = this.listPajakKeluaran
+      const listPajakMasukan = this.listPajakMasukan
       
-      const q = await this._getQ()
+      const q = await this._getQ(npwp)
       
-      for (const tahun of this.listTahun) {
+      for (const tahun of listTahun) {
         
         const qs = { q, tahun, pilihcek: 1, bulan1: 1, bulan2: 12, nplawan: 0, Page: 1 }
         const [dataPK, dataPM] = await Promise.all(['PK', 'PM'].map(pilihcari => this._getDataPKPM({ ...qs, pilihcari })))
@@ -151,17 +155,11 @@ class Appportal {
         const pk = { tahun, data: dataPK }
         const pm = { tahun, data: dataPM }
 
-        listPK.push(pk)
-        listPM.push(pm)
+        listPajakKeluaran.push(pk)
+        listPajakMasukan.push(pm)
       }
 
-      const fakturPK = this._getPkpmForReport(listPK)
-      const fakturPM = this._getPkpmForReport(listPM)
-
-      const result = { fakturPK, fakturPM }
-
-      if (typeof cb === 'function') return cb(null, result)
-      return result
+      if (typeof cb === 'function') return cb()
     } catch (err) {
       if (typeof cb === 'function') return cb(err)
       throw err

@@ -17,6 +17,7 @@
     "puppeteer-core": "^7.1.0",
     "request": "^2.88.2",
     "request-promise": "^4.2.6",
+    "winston": "^3.3.3",
     "xlsx": "^0.16.9"
   }
 }
