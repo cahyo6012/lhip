@@ -643,8 +643,9 @@ class SIDJP {
       const dataIkhtisarPembayaran = await Promise.all(listTahun.map(tahun => this._getIkhtisarPembayaran(tahun)))
       dataIkhtisarPembayaran.forEach(ikhtisarPembayaran => listIkhtisarPembayaran.push(ikhtisarPembayaran))
 
+      this.listIkhtisarPembayaranOk = true
+
       if (typeof cb === 'function') return cb()
-      return
     } catch (err) {
       if (typeof cb === 'function') return cb(err)
       throw err

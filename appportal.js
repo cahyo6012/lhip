@@ -1,6 +1,7 @@
 const request = require('request-promise')
 const cheerio = require('cheerio')
 const xlsx = require('xlsx')
+const { tahun } = require('./config/setting')
 
 class Appportal {
   constructor(props = {}) {
@@ -16,8 +17,8 @@ class Appportal {
     this.listPajakKeluaran = []
     this.listPajakMasukan = []
 
-    this.listPajakKeluaranOk = true
-    this.listPajakMasukanOk = true
+    this.listPajakKeluaranOk = false
+    this.listPajakMasukanOk = false
     
     Object.assign(this, props)
 
@@ -85,7 +86,7 @@ class Appportal {
       const $ = cheerio.load(res.body)
 
       const paging = $('#paging').text().trim()
-      const { totalPages } = paging.match(/(?<totalPages>\d+)\s+Page/).groups      
+      const { totalPages } = paging.match(/(?<totalPages>\d+)\s+Page/).groups
       
       const keys = [
         'NO',
@@ -146,9 +147,8 @@ class Appportal {
       const listPajakMasukan = this.listPajakMasukan
       
       const q = await this._getQ(npwp)
-      
+
       for (const tahun of listTahun) {
-        
         const qs = { q, tahun, pilihcek: 1, bulan1: 1, bulan2: 12, nplawan: 0, Page: 1 }
         const [dataPK, dataPM] = await Promise.all(['PK', 'PM'].map(pilihcari => this._getDataPKPM({ ...qs, pilihcari })))
         
@@ -159,6 +159,9 @@ class Appportal {
         listPajakMasukan.push(pm)
       }
 
+      this.listPajakKeluaranOk = true
+      this.listPajakMasukanOk = true
+
       if (typeof cb === 'function') return cb()
     } catch (err) {
       if (typeof cb === 'function') return cb(err)
@@ -168,17 +171,28 @@ class Appportal {
 
   exportPkpmToExcel(path) {
     const wb = xlsx.utils.book_new()
+    const emptyData = [{
+      'NO': '',
+      'NO FAKTUR': '',
+      'TGL FAKTUR': '',
+      'MASA PAJAK SENDIRI': '',
+      'MASA PAJAK LAWAN': '',
+      'NPWP LAWAN': '',
+      'NAMA LAWAN': '',
+      'PPN DILAPORKAN WP SENDIRI': '',
+      'PPN DILAPORKAN LAWAN': '',
+    }]
 
-    for (const pk of this.listPK) {
-      const ws = xlsx.utils.json_to_sheet(pk.data)
-      xlsx.utils.book_append_sheet(wb, ws, 'PK ' + pk.tahun)
+    for (let i = 0; i < this.listPajakKeluaran.length; i++) {
+      const pk = this.listPajakKeluaran[i]
+      const wsPk = xlsx.utils.json_to_sheet(pk.data.length ? pk.data : emptyData)
+      xlsx.utils.book_append_sheet(wb, wsPk, 'PK ' + pk.tahun)  
+
+      const pm = this.listPajakMasukan[i]
+      const wsPm = xlsx.utils.json_to_sheet(pm.data.length ? pm.data : emptyData)
+      xlsx.utils.book_append_sheet(wb, wsPm, 'PM ' + pm.tahun)
     }
-
-    for (const pm of this.listPM) {
-      const ws = xlsx.utils.json_to_sheet(pm.data)
-      xlsx.utils.book_append_sheet(wb, ws, 'PM ' + pm.tahun)
-    }
-
+    
     xlsx.writeFile(wb, path)
   }
 }

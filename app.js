@@ -97,11 +97,12 @@ function createProfilFolder(npwp) {
   const appportal = new Appportal(data.appportal)
 
   try {
+    logger.info('sidjp.login ...')
     if (!sidjp.isCompleted()) {
-      logger.info('sidjp.login ...')
       await sidjp.login(akun.sidjp)
       logger.info('sidjp.login - OK')
     }
+    else logger.info('sidjp.login - SKIP')
   } catch (err) {
     logger.error(createError('sidjp.login - FAIL'))
     logger.error(createError(err))
@@ -109,66 +110,72 @@ function createProfilFolder(npwp) {
 
   if (sidjp.isLoggedIn) {
     try {
+      logger.info('sidjp.profil ...')
       if (!sidjp.profil.npwp) {
-        logger.info('sidjp.profil ...')
         await sidjp.getProfil(setting.npwp)
         logger.info('sidjp.profil - OK')
       }
+      else logger.info('sidjp.profil - SKIP')
     } catch (err) {
       logger.error(createError('sidjp.profil - FAIL'))
       logger.error(createError(err))
     }
   
     try {
-      if (!sidjp.profil.npwp) {
-        logger.info('sidjp.spt ...')
+      logger.info('sidjp.spt ...')
+      if (!sidjp.listSpt.length) {
         await sidjp.getSpt(setting.tahun)
         logger.info('sidjp.spt - OK')
       }
+      else logger.info('sidjp.spt - SKIP')
     } catch (err) {
       logger.error(createError('sidjp.spt - FAIL'))
       logger.error(createError(err))
     }
   
     try {
+      logger.info('sidjp.detailSptTahunan ...')
       if (!sidjp.listPemegangSaham.length || !sidjp.listPengurus.length || !sidjp.listPenghasilan.length) {
-        logger.info('sidjp.detailSptTahunan ...')
         await sidjp.getDetailSptTahunan(setting.tahun)
         logger.info('sidjp.detailSptTahunan - OK')
       }
+      else logger.info('sidjp.detailSptTahunan - SKIP')
     } catch (err) {
       logger.error(createError('sidjp.detailSptTahunan - FAIL'))
       logger.error(createError(err))
     }
   
     try {
+      logger.info('sidjp.detailSptPpn ...')
       if (!sidjp.listPajakMasukan.length || !sidjp.listPajakMasukanImpor.length || !sidjp.listPajakKeluaran.length || !sidjp.listEkspor.length || !sidjp.listPajakMasukanTdd.length) {
-        logger.info('sidjp.detailSptPpn ...')
         await sidjp.getDetailSptPpn(setting.tahun)
         logger.info('sidjp.detailSptPpn - OK')
       }
+      else logger.info('sidjp.detailSptPpn - SKIP')
     } catch (err) {
       logger.error(createError('sidjp.detailSptPpn - FAIL'))
       logger.error(createError(err))
     }
   
     try {
+      logger.info('sidjp.ikhtisarPembayaran ...')
       if (!sidjp.listIkhtisarPembayaran.length) {
-        logger.info('sidjp.ikhtisarPembayaran ...')
         await sidjp.getIkhtisarPembayaran(setting.tahun)
         logger.info('sidjp.ikhtisarPembayaran - OK')
       }
+      else logger.info('sidjp.ikhtisarPembayaran - SKIP')
     } catch (err) {
       logger.error(createError('sidjp.ikhtisarPembayaran - FAIL'))
       logger.error(createError(err))
     }
   
     try {
+      logger.info('sidjp.tunggakan ...')
       if (!sidjp.listTunggakan.length) {
-        logger.info('sidjp.tunggakan ...')
         await sidjp.getTunggakan(setting.tahun)
         logger.info('sidjp.tunggakan - OK')
       }
+      else logger.info('sidjp.tunggakan - SKIP')
     } catch (err) {
       logger.error(createError('sidjp.tunggakan - FAIL'))
       logger.error(createError(err))
@@ -176,8 +183,11 @@ function createProfilFolder(npwp) {
   
     try {
       logger.info('sidjp.logout ...')
-      await sidjp.logout()
-      logger.info('sidjp.logout - OK')
+      if (sidjp.isLoggedIn) {
+        await sidjp.logout()
+        logger.info('sidjp.logout - OK')
+      }
+      else logger.info('sidjp.logout - SKIP')
     } catch (err) {
       logger.error(createError('sidjp.logout - FAIL'))
       logger.error(createError(err))
@@ -185,11 +195,12 @@ function createProfilFolder(npwp) {
   }
 
   try {
+    logger.info('approweb.login ...')
     if (!approweb.isCompleted()) {
-      logger.info('approweb.login ...')
       await approweb.login(akun.approweb)
       logger.info('approweb.login - OK')
     }
+    else logger.info('approweb.login - SKIP')
   } catch (err) {
     logger.error(createError('approweb.login - FAIL'))
     logger.error(createError(err))
@@ -206,11 +217,12 @@ function createProfilFolder(npwp) {
     }
     
     try {
+      logger.info('approweb.sp2dk ...')
       if (!approweb.listSp2dk.length) {
-        logger.info('approweb.sp2dk ...')
         await approweb.getSp2dk()
         logger.info('approweb.sp2dk - OK')
       }
+      else logger.info('approweb.sp2dk - SKIP')
     } catch (err) {
       logger.error(createError('approweb.sp2dk - FAIL'))
       logger.error(createError(err))
@@ -218,8 +230,11 @@ function createProfilFolder(npwp) {
 
     try {
       logger.info('approweb.logout ...')
-      await approweb.logout()
-      logger.info('approweb.logout - OK')
+      if (approweb.isLoggedIn) {
+        await approweb.logout()
+        logger.info('approweb.logout - OK')
+      }
+      else logger.info('approweb.logout - SKIP')
     } catch (err) {
       logger.error(createError('approweb.logout - FAIL'))
       logger.error(createError(err))
@@ -227,11 +242,12 @@ function createProfilFolder(npwp) {
   }
 
   try {
+    logger.info('alpp.login ...')
     if (!alpp.isCompleted()) {
-      logger.info('alpp.login ...')
       await alpp.login(akun.alpp)
       logger.info('alpp.login - OK')
     }
+    else logger.info('alpp.login - SKIP')
   } catch (err) {
     logger.error(createError('alpp.login - FAIL'))
     logger.error(createError(err))
@@ -239,11 +255,12 @@ function createProfilFolder(npwp) {
 
   if (alpp.isLoggedIn) {
     try {
+      logger.info('alpp.riwayatPemeriksaan ...')
       if (!alpp.listRiwayatPemeriksaan.length) {
-        logger.info('alpp.riwayatPemeriksaan ...')
         await alpp.getRiwayatPemeriksaan(setting.npwp)
         logger.info('alpp.riwayatPemeriksaan - OK')
       }
+      else logger.info('alpp.riwayatPemeriksaan - SKIP')
     } catch (err) {
       logger.error(createError('alpp.riwayatPemeriksaan - FAIL'))
       logger.error(createError(err))
@@ -251,8 +268,11 @@ function createProfilFolder(npwp) {
 
     try {
       logger.info('alpp.logout ...')
-      await alpp.logout()
-      logger.info('alpp.logout - OK')
+      if (alpp.isLoggedIn) {
+        await alpp.logout()
+        logger.info('alpp.logout - OK')
+      }
+      else logger.info('alpp.logout - SKIP')
     } catch (err) {
       logger.error(createError('alpp.logout - FAIL'))
       logger.error(createError(err))
@@ -260,22 +280,24 @@ function createProfilFolder(npwp) {
   }
 
   try {
+    logger.info('appportal.login ...')
     if (!appportal.isCompleted()) {
-      logger.info('appportal.login ...')
       await appportal.login(akun.appportal)
       logger.info('appportal.login - OK')
     }
+    else logger.info('appportal.login - SKIP')
   } catch (err) {
     logger.error(createError('appportal.login - FAIL'))
     logger.error(createError(err))
   }
 
   try {
+    logger.info('appportal.cekAksesPkpm ...')
     if (!appportal.isCompleted()) {
-      logger.info('appportal.cekAksesPkpm ...')
       await appportal.checkPkpmAccess()
       logger.info('appportal.cekAksesPkpm - OK')
     }
+    else logger.info('appportal.cekAksesPkpm - SKIP')
   } catch (err) {
     logger.error(createError('appportal.cekAksesPkpm - FAIL'))
     logger.error(createError(err))
@@ -283,32 +305,36 @@ function createProfilFolder(npwp) {
 
   if (appportal.isLoggedIn && appportal.hasPkpmAccess) {
     try {
+      logger.info('appportal.pkpm ...')
       if (!appportal.listPajakMasukan.length || !appportal.listPajakKeluaran.length) {
-        logger.info('appportal.pkpm ...')
         await appportal.getPKPM(setting.npwp, setting.tahun)
         logger.info('appportal.pkpm - OK')
       }
+      else logger.info('appportal.pkpm - SKIP')
     } catch (err) {
       logger.error(createError('appportal.pkpm - FAIL'))
       logger.error(createError(err))
     }
 
     try {
-      logger.info('appportal.exportPkpm ...')
-      appportal.exportPkpmToExcel(path.resolve(wpPath, 'PKPM.xlsx'))
-      logger.info('appportal.exportPkpm - OK')
-    } catch (err) {
-      logger.error(err)
-    }
-
-    try {
       logger.info('appportal.logout ...')
-      await appportal.logout()
-      logger.info('appportal.logout - OK')
+      if (appportal.isLoggedIn) {
+        await appportal.logout()
+        logger.info('appportal.logout - OK')
+      }
+      else logger.info('appportal.logout - SKIP')
     } catch (err) {
       logger.error(createError('appportal.logout - FAIL'))
       logger.error(createError(err))
     }
+  }
+  
+  try {
+    logger.info('appportal.exportPkpm ...')
+    appportal.exportPkpmToExcel(path.resolve(wpPath, 'PKPM.xlsx'))
+    logger.info('appportal.exportPkpm - OK')
+  } catch (err) {
+    logger.error(createError(err))
   }
 
   data = makeData({ setting, sidjp, approweb, alpp, appportal })
