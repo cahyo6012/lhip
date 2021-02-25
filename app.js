@@ -294,6 +294,14 @@ function createProfilFolder(npwp) {
     }
 
     try {
+      logger.info('appportal.exportPkpm ...')
+      appportal.exportPkpmToExcel(path.resolve(wpPath, 'PKPM.xlsx'))
+      logger.info('appportal.exportPkpm - OK')
+    } catch (err) {
+      logger.error(err)
+    }
+
+    try {
       logger.info('appportal.logout ...')
       await appportal.logout()
       logger.info('appportal.logout - OK')
